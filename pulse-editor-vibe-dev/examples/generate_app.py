@@ -27,7 +27,7 @@ class AgentTaskMessage:
     """Represents a message from the Vibe Dev Flow SSE stream."""
     message_id: str
     msg_type: str  # "creation" or "update"
-    data_type: str = ""  # "text", "tool_call", "tool_result", "artifact_output"
+    data_type: str = ""  # "text", "toolCall", "toolResult", "artifactOutput"
     result: str = ""
     error: str = ""
     is_final: bool = False
@@ -73,14 +73,14 @@ class MessageTracker:
         
         return None
     
-    def get_artifact_output(self) -> Optional[dict]:
+    def get_artifactOutput(self) -> Optional[dict]:
         """
         Find and parse the artifact output message.
         
         Returns parsed artifact data with publishedAppLink, appId, etc.
         """
         for msg in self.messages.values():
-            if msg.data_type == "artifact_output" and msg.is_final and msg.result:
+            if msg.data_type == "artifactOutput" and msg.is_final and msg.result:
                 try:
                     return json.loads(msg.result)
                 except json.JSONDecodeError:
@@ -182,7 +182,7 @@ def generate_pulse_app(
         print("-" * 50)
         
         # Get final artifact output
-        artifact = tracker.get_artifact_output()
+        artifact = tracker.get_artifactOutput()
         if artifact:
             print("✅ Generation complete!")
             if artifact.get("publishedAppLink"):
@@ -217,16 +217,16 @@ def display_message(msg: AgentTaskMessage, is_new: bool) -> None:
             preview = msg.result[:100] + "..." if len(msg.result) > 100 else msg.result
             print(f"💬 {preview}")
     
-    elif msg.data_type == "tool_call":
+    elif msg.data_type == "toolCall":
         if is_new:
             print(f"🔧 Tool call started...")
     
-    elif msg.data_type == "tool_result":
+    elif msg.data_type == "toolResult":
         if msg.is_final:
             status = "✅" if not msg.error else "❌"
             print(f"{status} Tool completed")
     
-    elif msg.data_type == "artifact_output":
+    elif msg.data_type == "artifactOutput":
         if is_new:
             print(f"📦 Building artifact...")
     

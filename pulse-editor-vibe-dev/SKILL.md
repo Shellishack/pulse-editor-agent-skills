@@ -9,11 +9,17 @@ This skill enables you to interact with the Pulse Editor Vibe Dev Flow API to ge
 
 ## Why Use This Skill
 
-- **No Local Code Generation**: Offload code generation to the cloud—no local build tools or dependencies needed
-- **Built-in Version Control**: Apps are automatically versioned; update existing apps via `appId` and `version`
-- **Instant Deployment**: Apps are built and published immediately—get a live URL when generation completes
-- **Parallel Generation**: Generate multiple apps simultaneously with concurrent API calls
-- **Stateless**: Agents stay lightweight; all heavy lifting happens in the cloud
+This skill provides significant advantages for AI agents:
+
+- **No Local Code Generation Required**: Instead of generating code locally on the user's machine, agents can offload code generation to Pulse Editor's cloud-based vibe coding service. This eliminates the need for local build tools, dependencies, or development environments.
+
+- **Built-in Version Control**: Every app generation is automatically versioned. Agents can update existing apps by specifying `appId` and `version`, making it easy to iterate on applications without manual version management.
+
+- **Instant Deployment**: Apps are automatically built and published immediately after generation. No separate build or deploy steps needed—users get a live, working app URL as soon as generation completes.
+
+- **Parallel App Generation**: Agents can generate multiple apps simultaneously by making concurrent API calls. This is ideal for scenarios where an agent needs to scaffold several microservices, create multiple related applications, or batch-generate apps for different purposes—all at the same time.
+
+- **Stateless & Scalable**: Since all code generation happens in the cloud, agents remain lightweight and can scale horizontally without worrying about local resource constraints.
 
 ## Important: Long-Running Task
 
@@ -21,7 +27,17 @@ This skill enables you to interact with the Pulse Editor Vibe Dev Flow API to ge
 
 - **Expected duration**: Typically 2-5 minutes, but complex apps may take longer
 - **Timeout threshold**: Do NOT time out the request unless it exceeds **10 minutes**
-- **SSE streaming**: The connection stays open and streams progress updates throughout the process. Keep the connection alive and process events as they arrive.
+- **SSE streaming**: The connection stays open throughout the process. **Even if no SSE messages are received for a period, the request is NOT stalled or stuck as long as the connection remains open.** Wait for the stream to end or the 10-minute timeout.
+- **Token efficiency**: Agents should use `"streamUpdatePolicy": "artifactOnly"` in the request body to receive only the final artifact output, significantly reducing input tokens. But it won't count as being stuck if no messages are received for a while.
+
+## When to Use This Skill
+
+Use this skill when the user wants to:
+
+- Create a new Pulse App from a description or prompt
+- Update an existing Pulse App with new features
+- Generate code for a Pulse Editor application
+- Build and publish a Pulse App
 
 ## API Authentication
 
@@ -58,6 +74,7 @@ Authorization: Bearer your_api_key_here
 | `appName` | string | No       | Friendly display name for the app                                                          | `"My Todo App"`                               |
 | `appId`   | string | No       | Unique identifier of an existing app to update. If not provided, a new app will be created | `"my_app_x7k9q2"`                             |
 | `version` | string | No       | Version identifier of an existing app. If not provided, defaults to latest version         | `"0.0.1"`                                     |
+| `streamUpdatePolicy` | string | No | Set to `"artifactOnly"` to receive only the final artifact output (recommended for agents to save tokens) | `"artifactOnly"` |
 
 ### Response
 
@@ -82,7 +99,7 @@ There are two message types:
   "messageId": "msg_abc123",
   "type": "creation",
   "data": {
-    "type": "text" | "tool_call" | "tool_result" | "artifact_output",
+    "type": "text" | "toolCall" | "toolResult" | "artifactOutput",
     "result": "string content",
     "error": "error message if any"
   },
@@ -109,13 +126,13 @@ There are two message types:
 | Type              | Description                            |
 | ----------------- | -------------------------------------- |
 | `text`            | Text output from the agent             |
-| `tool_call`       | Tool invocation by the agent           |
-| `tool_result`     | Result from a tool execution           |
-| `artifact_output` | Final artifact with published app info |
+| `toolCall`       | Tool invocation by the agent           |
+| `toolResult`     | Result from a tool execution           |
+| `artifactOutput` | Final artifact with published app info |
 
 #### Artifact Output Format
 
-When the generation completes, an `artifact_output` message contains:
+When the generation completes, an `artifactOutput` message contains:
 
 ```json
 {
@@ -197,7 +214,7 @@ for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
                 msg["isFinal"] = data["isFinal"]
 
         # Check for artifact output
-        if data.get("data", {}).get("type") == "artifact_output" and data.get("isFinal"):
+        if data.get("data", {}).get("type") == "artifactOutput" and data.get("isFinal"):
             result = json.loads(messages[data["messageId"]]["data"]["result"])
             print(f"Published: {result.get('publishedAppLink')}")
 ```
@@ -255,7 +272,7 @@ while (true) {
 
     // Check for final artifact output
     const msg = messages.get(message.messageId);
-    if (msg?.data.type === "artifact_output" && msg.isFinal) {
+    if (msg?.data.type === "artifactOutput" && msg.isFinal) {
       const result = JSON.parse(msg.data.result);
       console.log("Published:", result.publishedAppLink);
     }
@@ -280,12 +297,30 @@ curl -L 'https://pulse-editor.com/api/server-function/vibe_dev_flow/latest/gener
   }'
 ```
 
+### Updating an Existing App
+
+To update an existing app, include the `appId` and optionally the `version`:
+
+```bash
+curl -L 'https://pulse-editor.com/api/server-function/vibe_dev_flow/latest/generate-code/v2/generate' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: text/event-stream' \
+  -H 'Authorization: Bearer your_api_key_here' \
+  -d '{
+    "prompt": "Add a calendar view to display tasks by date",
+    "appName": "My Todo App",
+    "appId": "my_app_x7k9q2",
+    "version": "0.0.1"
+  }'
+```
+
 ## Best Practices
 
-1. **Clear Prompts**: Be specific about what the app should do
-2. **Handle SSE Streaming**: Process events as they arrive; don't wait for completion
-3. **Secure API Keys**: Use environment variables, never hardcode
-4. **Specify Version**: When updating apps, include `version` to build on the correct base
+1. **Clear Prompts**: Provide detailed, specific prompts describing what you want the app to do
+2. **Handle SSE Properly**: Process the streaming response in real-time for progress updates
+3. **Error Handling**: Implement proper error handling for 400, 401, and 500 responses
+4. **API Key Security**: Never hardcode API keys; use environment variables or secure storage
+5. **Versioning**: When updating apps, specify the version to ensure you're building on the correct base
 
 ## Troubleshooting
 
@@ -295,11 +330,38 @@ curl -L 'https://pulse-editor.com/api/server-function/vibe_dev_flow/latest/gener
 | No SSE events    | Ensure `Accept: text/event-stream` header is set    |
 | App not updating | Verify the `appId` exists and you have access to it |
 
-## Examples
+## Included Examples
 
-See the `examples/` folder for ready-to-run scripts:
-- `generate_app.py` - Python with SSE streaming
-- `generate_app.js` - Node.js with SSE streaming
+This skill includes a ready-to-run Python example in the `examples/` folder:
+
+- **`examples/generate_app.py`** - Complete Python script demonstrating SSE streaming with the Vibe Dev Flow API
+- **`examples/generate_app.js`** - Complete Node.js script demonstrating SSE streaming with the Vibe Dev Flow API
+
+To run the example Python script:
+
+```bash
+# Set your API key
+export PULSE_EDITOR_API_KEY=your_api_key_here  # Linux/Mac
+set PULSE_EDITOR_API_KEY=your_api_key_here     # Windows
+
+# Install dependencies
+pip install requests
+
+# Run the script
+python examples/generate_app.py
+```
+
+To run the example Node.js script:
+
+```bash
+# Set your API key
+export PULSE_EDITOR_API_KEY=your_api_key_here  # Linux/Mac
+set PULSE_EDITOR_API_KEY=your_api_key_here     # Windows
+# Install dependencies
+npm install node-fetch
+# Run the script
+node examples/generate_app.js
+```
 
 ## Resources
 
