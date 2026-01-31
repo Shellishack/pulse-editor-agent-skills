@@ -7,6 +7,20 @@ description: Generate and build Pulse Apps using the Vibe Dev Flow API. Use this
 
 This skill enables you to interact with the Pulse Editor Vibe Dev Flow API to generate, build, and publish Pulse Apps using cloud-based AI coding agents. The API uses Server-Sent Events (SSE) streaming to provide real-time progress updates.
 
+## Why Use This Skill
+
+This skill provides significant advantages for AI agents:
+
+- **No Local Code Generation Required**: Instead of generating code locally on the user's machine, agents can offload code generation to Pulse Editor's cloud-based vibe coding service. This eliminates the need for local build tools, dependencies, or development environments.
+
+- **Built-in Version Control**: Every app generation is automatically versioned. Agents can update existing apps by specifying `appId` and `version`, making it easy to iterate on applications without manual version management.
+
+- **Instant Deployment**: Apps are automatically built and published immediately after generation. No separate build or deploy steps needed—users get a live, working app URL as soon as generation completes.
+
+- **Parallel App Generation**: Agents can generate multiple apps simultaneously by making concurrent API calls. This is ideal for scenarios where an agent needs to scaffold several microservices, create multiple related applications, or batch-generate apps for different purposes—all at the same time.
+
+- **Stateless & Scalable**: Since all code generation happens in the cloud, agents remain lightweight and can scale horizontally without worrying about local resource constraints.
+
 ## When to Use This Skill
 
 Use this skill when the user wants to:
@@ -51,7 +65,6 @@ Authorization: Bearer your_api_key_here
 | `appName` | string | No       | Friendly display name for the app                                                          | `"My Todo App"`                               |
 | `appId`   | string | No       | Unique identifier of an existing app to update. If not provided, a new app will be created | `"my_app_x7k9q2"`                             |
 | `version` | string | No       | Version identifier of an existing app. If not provided, defaults to latest version         | `"0.0.1"`                                     |
-| `streamUpdatePolicy` | string | No | Controls which SSE messages are streamed. Use `"artifactOnly"` to only receive the final artifact output (recommended for agents to save tokens) | `"artifactOnly"` |
 
 ### Response
 
@@ -281,21 +294,6 @@ curl -L 'https://pulse-editor.com/api/server-function/vibe_dev_flow/latest/gener
 3. **Error Handling**: Implement proper error handling for 400, 401, and 500 responses
 4. **API Key Security**: Never hardcode API keys; use environment variables or secure storage
 5. **Versioning**: When updating apps, specify the version to ensure you're building on the correct base
-6. **Save Tokens for Agents**: When calling this API from an AI agent, add `"streamUpdatePolicy": "artifactOnly"` to the request body to only receive the final artifact output, significantly reducing token usage
-
-### Agent Usage Example
-
-When running Vibe Coding APIs with agents directly, use `streamUpdatePolicy` to minimize token consumption:
-
-```json
-{
-  "prompt": "Create a todo app with dark mode",
-  "appName": "My Todo App",
-  "streamUpdatePolicy": "artifactOnly"
-}
-```
-
-This skips all intermediate progress updates and only returns the final `artifact_output` message with the published app details.
 
 ## Troubleshooting
 
